@@ -271,7 +271,7 @@ fetchViaWebSocket();
 // Also try HTTP every 5 minutes
 setInterval(fetchVessels, 300000);
 
-if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/FleetTracker/sw.js').catch(()=>{});
 </script>
 </body>
 </html>
