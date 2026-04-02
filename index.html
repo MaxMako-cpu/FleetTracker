@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="PXGEO FleetTrack">
+<meta name="apple-mobile-web-app-title" content="PXGEO-FleetTracker">
 <meta name="theme-color" content="#0a0f1e">
 <title>FleetTrack</title>
 
@@ -380,192 +380,112 @@ LIVE
 
 <!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
 <script>
-// ─── MOCK FLEET DATA ────────────────────────────────────────────────
-// Replace this array with real AIS API data later
-const FLEET = [
-{
-id: "V001",
-name: "ISLAND FRONTIER",
-imo: "IMO 9249520",
-mmsi: "258866000",
-lat: 23.5,
-lng: -92.1,
-heading: 45,
-speed: 4.2,
-course: 47,
-status: "underway",
-voyage: "SV-2024-047",
-origin: "Port Fourchon",
-destination: "MC 252",
-draught: "5.2m",
-eta: "14:30 UTC"
-},
-{
-id: "V002",
-name: "PXGEO2",
-imo: "IMO 9620114",
-mmsi: "311001040",
-lat: 25.1,
-lng: -88.7,
-heading: 270,
-speed: 0.0,
-course: 0,
-status: "anchored",
-voyage: "SV-2024-041",
-origin: "New Orleans",
-destination: "GC 644",
-draught: "6.8m",
-eta: "On Station"
-},
-{
-id: "V003",
-name: "REM ANDES",
-imo: "IMO 9606699",
-mmsi: "210722000",
-lat: 27.3,
-lng: -90.4,
-heading: 180,
-speed: 5.8,
-course: 183,
-status: "underway",
-voyage: "SV-2024-052",
-origin: "Fourchon",
-destination: "WR 143",
-draught: "4.9m",
-eta: "09:15 UTC"
-},
-{
-id: "V004",
-name: "FULMAR EXPLORER",
-imo: "IMO 9418860",
-mmsi: "210328000",
-lat: 29.0,
-lng: -89.1,
-heading: 90,
-speed: 0.0,
-course: 0,
-status: "moored",
-voyage: "SV-2024-038",
-origin: "Port Fourchon",
-destination: "Port Fourchon",
-draught: "3.1m",
-eta: "Dockside"
-},
-{
-id: "V005",
-name: "SEA1 DORADO",
-imo: "IMO 9424508",
-mmsi: "311031800",
-lat: 24.8,
-lng: -94.2,
-heading: 60,
-speed: 6.1,
-course: 62,
-status: "underway",
-voyage: "SV-2024-055",
-origin: "Veracruz",
-destination: "GC 955",
-draught: "7.2m",
-eta: "22:00 UTC"
-},
-{
-id: "V006",
-name: "SIDDIS MARINER",
-imo: "IMO 9475181",
-mmsi: "259795000",
-lat: 22.1,
-lng: -87.5,
-heading: 315,
-speed: 3.5,
-course: 318,
-status: "underway",
-voyage: "SV-2024-049",
-origin: "Tampico",
-destination: "MC 394",
-draught: "5.8m",
-eta: "11:45 UTC"
-}
-];
+// ─── CONFIG ─────────────────────────────────────────────────────────
+const AIS_KEY = '0687d703b9c4249b96f77f49d7987df46de16e82';
+const MMSI_LIST = [258866000, 311001040, 210722000, 311031800, 259795000, 210328000];
 
-// ─── MAP SETUP ──────────────────────────────────────────────────────
-const map = L.map('map', {
-center: [25.5, -90.5],
-zoom: 6,
-zoomControl: true,
-attributionControl: false
-});
+const NAV_STATUS = {
+0:'Underway',1:'Anchored',2:'Not under command',3:'Restricted',
+4:'Constrained',5:'Moored',6:'Aground',7:'Fishing',8:'Sailing',
+15:'Unknown'
+};
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-maxZoom: 18
-}).addTo(map);
+// ─── STATE ──────────────────────────────────────────────────────────
+const vessels = {};
+let activeVessel = null;
+const markers = {};
 
-// ─── SVG VESSEL ICON ────────────────────────────────────────────────
+// ─── MAP ────────────────────────────────────────────────────────────
+const map = L.map('map', { center: [20, 0], zoom: 3, zoomControl: true, attributionControl: false });
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
+
+// ─── ICON ───────────────────────────────────────────────────────────
 function vesselSVG(heading, status) {
-const colors = { underway: '#00ff9d', anchored: '#ff6b35', moored: '#5a7a9f' };
-const c = colors[status] || '#00d4ff';
-return `<svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg"
-style="transform: rotate(${heading}deg);">
-<polygon points="11,2 18,19 11,15 4,19" fill="${c}" opacity="0.9"/>
+const c = status === 'Underway' ? '#00ff9d' : status === 'Anchored' || status === 'Moored' ? '#ff6b35' : '#5a7a9f';
+return `<svg width="22" height="22" viewBox="0 0 22 22" fill="none" style="transform:rotate(${heading||0}deg)">
+<polygon points="11,2 18,19 11,15 4,19" fill="${c}" opacity=".9"/>
 <polygon points="11,2 18,19 11,15 4,19" fill="none" stroke="${c}" stroke-width="1"/>
 </svg>`;
 }
 
-function createVesselIcon(vessel) {
+function createIcon(v) {
+const shortName = (v.name || v.mmsi).toString().split(' ')[0];
 return L.divIcon({
 className: '',
-html: `<div class="vessel-marker-wrap">
-${vesselSVG(vessel.heading, vessel.status)}
-<span class="vessel-label">${vessel.name.split(' ')[0]}</span>
-</div>`,
-iconSize: [60, 40],
-iconAnchor: [30, 11]
+html: `<div class="vessel-marker-wrap">${vesselSVG(v.heading, v.status)}<span class="vessel-label">${shortName}</span></div>`,
+iconSize: [60, 40], iconAnchor: [30, 11]
 });
 }
 
-// ─── MARKERS ────────────────────────────────────────────────────────
-let activeVessel = null;
-const markers = {};
+// ─── UPDATE VESSEL ───────────────────────────────────────────────────
+function updateVessel(data) {
+const mmsi = data.UserID || data.MMSI;
+if (!mmsi) return;
 
-FLEET.forEach(v => {
-const marker = L.marker([v.lat, v.lng], { icon: createVesselIcon(v) }).addTo(map);
-marker.on('click', () => selectVessel(v));
-markers[v.id] = marker;
-});
+const meta = data.MetaData || {};
+const nav = data.Message?.PositionReport || data.Message?.StandardClassBPositionReport || {};
 
-// ─── FLEET STRIP ────────────────────────────────────────────────────
-document.getElementById('fleet-count').textContent = `${FLEET.length} vessels`;
+const lat = nav.Latitude ?? vessels[mmsi]?.lat;
+const lng = nav.Longitude ?? vessels[mmsi]?.lng;
+if (!lat || !lng) return;
 
+const statusCode = nav.NavigationalStatus ?? 15;
+const status = NAV_STATUS[statusCode] || 'Unknown';
+const speed = nav.SpeedOverGround ?? 0;
+const course = Math.round(nav.CourseOverGround ?? 0);
+const heading = nav.TrueHeading ?? nav.CourseOverGround ?? 0;
+const name = meta.ShipName?.trim() || vessels[mmsi]?.name || String(mmsi);
+const destination = meta.Destination?.trim() || vessels[mmsi]?.destination || '—';
+const draught = meta.Draught ? meta.Draught + 'm' : vessels[mmsi]?.draught || '—';
+const eta = meta.ETA || vessels[mmsi]?.eta || '—';
+
+vessels[mmsi] = { mmsi, name, lat, lng, heading, speed, course, status, destination, draught, eta };
+
+if (markers[mmsi]) {
+markers[mmsi].setLatLng([lat, lng]);
+markers[mmsi].setIcon(createIcon(vessels[mmsi]));
+} else {
+const m = L.marker([lat, lng], { icon: createIcon(vessels[mmsi]) }).addTo(map);
+m.on('click', () => selectVessel(mmsi));
+markers[mmsi] = m;
+}
+
+updateStrip();
+if (activeVessel === mmsi) renderCard(mmsi);
+}
+
+// ─── STRIP ──────────────────────────────────────────────────────────
+function updateStrip() {
 const strip = document.getElementById('fleet-strip');
-FLEET.forEach(v => {
+strip.innerHTML = '';
+document.getElementById('fleet-count').textContent = Object.keys(vessels).length + ' vessels';
+
+Object.values(vessels).forEach(v => {
+const cls = v.status === 'Underway' ? 'underway' : v.status === 'Anchored' ? 'anchored' : 'moored';
 const chip = document.createElement('div');
-chip.className = 'vessel-chip';
-chip.dataset.id = v.id;
-chip.innerHTML = `
-<span class="chip-name">${v.name}</span>
-<span class="chip-status ${v.status}">${v.status.toUpperCase()}</span>
-`;
-chip.addEventListener('click', () => selectVessel(v));
+chip.className = 'vessel-chip' + (activeVessel === v.mmsi ? ' active' : '');
+chip.dataset.id = v.mmsi;
+chip.innerHTML = `<span class="chip-name">${v.name}</span><span class="chip-status ${cls}">${v.status.toUpperCase()}</span>`;
+chip.addEventListener('click', () => selectVessel(v.mmsi));
 strip.appendChild(chip);
 });
-
-// ─── SELECT VESSEL ──────────────────────────────────────────────────
-function selectVessel(v) {
-if (activeVessel === v.id) {
-clearSelection(); return;
 }
-activeVessel = v.id;
 
-// Update chips
-document.querySelectorAll('.vessel-chip').forEach(c => {
-c.classList.toggle('active', c.dataset.id === v.id);
-});
+// ─── SELECT ──────────────────────────────────────────────────────────
+function selectVessel(mmsi) {
+if (activeVessel === mmsi) { clearSelection(); return; }
+activeVessel = mmsi;
+updateStrip();
+const v = vessels[mmsi];
+if (v) map.flyTo([v.lat, v.lng], Math.max(map.getZoom(), 6), { duration: 0.8 });
+renderCard(mmsi);
+}
 
-// Pan to vessel
-map.flyTo([v.lat, v.lng], Math.max(map.getZoom(), 7), { duration: 0.8 });
-
-// Show detail card
+function renderCard(mmsi) {
+const v = vessels[mmsi];
+if (!v) return;
+const cls = v.status === 'Underway' ? 'underway' : v.status === 'Anchored' ? 'anchored' : 'moored';
 const card = document.getElementById('detail-card');
 card.className = 'visible';
 card.innerHTML = `
@@ -573,53 +493,56 @@ card.innerHTML = `
 <div class="card-header">
 <div>
 <div class="card-name">${v.name}</div>
-<div class="card-imo">${v.imo} · MMSI ${v.mmsi}</div>
+<div class="card-imo">MMSI ${v.mmsi}</div>
 </div>
-<div class="status-badge ${v.status}">${v.status}</div>
+<div class="status-badge ${cls}">${v.status}</div>
 </div>
 <div class="card-grid">
-<div class="card-field">
-<div class="field-label">Speed</div>
-<div class="field-value accent">${v.speed} kn</div>
-</div>
-<div class="card-field">
-<div class="field-label">Course</div>
-<div class="field-value">${v.course}°</div>
-</div>
-<div class="card-field">
-<div class="field-label">Draught</div>
-<div class="field-value">${v.draught}</div>
-</div>
+<div class="card-field"><div class="field-label">Speed</div><div class="field-value accent">${v.speed.toFixed(1)} kn</div></div>
+<div class="card-field"><div class="field-label">Course</div><div class="field-value">${v.course}°</div></div>
+<div class="card-field"><div class="field-label">Draught</div><div class="field-value">${v.draught}</div></div>
 </div>
 <div class="route-row">
-<div class="route-port">
-<div class="port-label">FROM</div>
-<div class="port-name">${v.origin}</div>
-</div>
-<div class="route-arrow">→</div>
-<div class="route-port">
-<div class="port-label">TO</div>
-<div class="port-name">${v.destination}</div>
-</div>
-<div class="route-port" style="text-align:right">
-<div class="port-label">ETA</div>
-<div class="port-name" style="font-size:12px">${v.eta}</div>
-</div>
-</div>
-`;
+<div class="route-port"><div class="port-label">DESTINATION</div><div class="port-name">${v.destination}</div></div>
+<div class="route-port" style="text-align:right"><div class="port-label">ETA</div><div class="port-name" style="font-size:12px">${v.eta}</div></div>
+</div>`;
 }
 
 function clearSelection() {
 activeVessel = null;
-document.querySelectorAll('.vessel-chip').forEach(c => c.classList.remove('active'));
+updateStrip();
 document.getElementById('detail-card').className = '';
 document.getElementById('detail-card').innerHTML = '';
 }
 
-// ─── SERVICE WORKER (PWA) ────────────────────────────────────────────
-if ('serviceWorker' in navigator) {
-navigator.serviceWorker.register('/sw.js').catch(() => {});
+// ─── AIS WEBSOCKET ───────────────────────────────────────────────────
+function connectAIS() {
+const ws = new WebSocket('wss://stream.aisstream.io/v0/stream');
+
+ws.onopen = () => {
+ws.send(JSON.stringify({
+APIKey: AIS_KEY,
+MessageTypes: ['PositionReport'],
+Filters: { MMSI: MMSI_LIST }
+}));
+console.log('AIS connected');
+};
+
+ws.onmessage = e => {
+try { updateVessel(JSON.parse(e.data)); } catch {}
+};
+
+ws.onclose = () => {
+console.log('AIS disconnected, reconnecting in 5s...');
+setTimeout(connectAIS, 5000);
+};
+
+ws.onerror = () => ws.close();
 }
+
+connectAIS();
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 </script>
 </body>
 </html>
