@@ -5,544 +5,273 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="PXGEO-FleetTracker">
+<meta name="apple-mobile-web-app-title" content="PXGEO">
 <meta name="theme-color" content="#0a0f1e">
-<title>FleetTrack</title>
-
-<!-- Leaflet CSS -->
+<link rel="manifest" href="manifest.json">
+<title>PXGEO FleetTracker</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Barlow+Condensed:wght@300;400;600;700&display=swap');
-
-:root {
---bg: #0a0f1e;
---surface: #111827;
---surface2: #1a2235;
---border: #1e3a5f;
---accent: #00d4ff;
---accent2: #00ff9d;
---warn: #ff6b35;
---text: #e2eaf5;
---muted: #5a7a9f;
---font-mono: 'Space Mono', monospace;
---font-ui: 'Barlow Condensed', sans-serif;
-}
-
-* { margin: 0; padding: 0; box-sizing: border-box; }
-
-body {
-background: var(--bg);
-color: var(--text);
-font-family: var(--font-ui);
-height: 100dvh;
-overflow: hidden;
-display: flex;
-flex-direction: column;
-}
-
-/* HEADER */
-header {
-position: relative;
-z-index: 1000;
-background: var(--surface);
-border-bottom: 1px solid var(--border);
-padding: 10px 16px;
-display: flex;
-align-items: center;
-justify-content: space-between;
-flex-shrink: 0;
-padding-top: max(10px, env(safe-area-inset-top));
-}
-
-.logo {
-display: flex;
-align-items: center;
-gap: 8px;
-}
-
-.logo-icon {
-width: 28px;
-height: 28px;
-background: linear-gradient(135deg, var(--accent), var(--accent2));
-border-radius: 6px;
-display: flex;
-align-items: center;
-justify-content: center;
-font-size: 14px;
-}
-
-.logo-text {
-font-family: var(--font-mono);
-font-size: 13px;
-font-weight: 700;
-letter-spacing: 2px;
-color: var(--accent);
-text-transform: uppercase;
-}
-
-.header-right {
-display: flex;
-align-items: center;
-gap: 12px;
-}
-
-.live-badge {
-display: flex;
-align-items: center;
-gap: 5px;
-font-family: var(--font-mono);
-font-size: 9px;
-color: var(--accent2);
-letter-spacing: 1px;
-}
-
-.live-dot {
-width: 6px;
-height: 6px;
-border-radius: 50%;
-background: var(--accent2);
-animation: pulse 1.5s infinite;
-}
-
-@keyframes pulse {
-0%, 100% { opacity: 1; transform: scale(1); }
-50% { opacity: 0.4; transform: scale(0.7); }
-}
-
-.fleet-count {
-font-family: var(--font-mono);
-font-size: 10px;
-color: var(--muted);
-letter-spacing: 1px;
-}
-
-/* MAP */
-#map {
-flex: 1;
-background: var(--bg);
-z-index: 1;
-}
-
-/* Leaflet dark overrides */
-.leaflet-tile { filter: brightness(0.7) saturate(0.8) hue-rotate(180deg) invert(1) hue-rotate(200deg); }
-.leaflet-container { background: #0a1628; }
-.leaflet-control-zoom a {
-background: var(--surface2) !important;
-color: var(--accent) !important;
-border-color: var(--border) !important;
-}
-.leaflet-control-attribution { display: none; }
-
-/* VESSEL MARKER */
-.vessel-marker-wrap {
-display: flex;
-flex-direction: column;
-align-items: center;
-cursor: pointer;
-}
-
-.vessel-icon {
-width: 22px;
-height: 22px;
-filter: drop-shadow(0 0 6px var(--accent));
-}
-
-.vessel-label {
-font-family: var(--font-mono);
-font-size: 8px;
-color: var(--accent);
-background: rgba(10,15,30,0.85);
-border: 1px solid var(--border);
-border-radius: 3px;
-padding: 1px 4px;
-margin-top: 2px;
-white-space: nowrap;
-letter-spacing: 0.5px;
-}
-
-/* BOTTOM PANEL */
-#panel {
-position: relative;
-z-index: 1000;
-background: var(--surface);
-border-top: 1px solid var(--border);
-flex-shrink: 0;
-transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-padding-bottom: env(safe-area-inset-bottom);
-}
-
-/* Fleet strip */
-#fleet-strip {
-padding: 10px 16px;
-overflow-x: auto;
-scrollbar-width: none;
-display: flex;
-gap: 8px;
--webkit-overflow-scrolling: touch;
-}
-#fleet-strip::-webkit-scrollbar { display: none; }
-
-.vessel-chip {
-flex-shrink: 0;
-background: var(--surface2);
-border: 1px solid var(--border);
-border-radius: 8px;
-padding: 6px 12px;
-cursor: pointer;
-transition: all 0.2s;
-display: flex;
-flex-direction: column;
-align-items: flex-start;
-gap: 2px;
-min-width: 100px;
-}
-
-.vessel-chip:active { transform: scale(0.96); }
-.vessel-chip.active {
-border-color: var(--accent);
-background: rgba(0,212,255,0.08);
-}
-
-.chip-name {
-font-family: var(--font-ui);
-font-size: 12px;
-font-weight: 600;
-letter-spacing: 0.5px;
-color: var(--text);
-white-space: nowrap;
-}
-
-.chip-status {
-font-family: var(--font-mono);
-font-size: 8px;
-letter-spacing: 0.5px;
-}
-.chip-status.underway { color: var(--accent2); }
-.chip-status.anchored { color: var(--warn); }
-.chip-status.moored { color: var(--muted); }
-
-/* Detail card */
-#detail-card {
-display: none;
-border-top: 1px solid var(--border);
-padding: 14px 16px;
-animation: slideUp 0.25s ease;
-}
-#detail-card.visible { display: block; }
-
-@keyframes slideUp {
-from { opacity: 0; transform: translateY(8px); }
-to { opacity: 1; transform: translateY(0); }
-}
-
-.card-header {
-display: flex;
-justify-content: space-between;
-align-items: flex-start;
-margin-bottom: 12px;
-}
-
-.card-name {
-font-family: var(--font-ui);
-font-size: 20px;
-font-weight: 700;
-letter-spacing: 1px;
-line-height: 1;
-}
-
-.card-imo {
-font-family: var(--font-mono);
-font-size: 9px;
-color: var(--muted);
-letter-spacing: 1px;
-margin-top: 3px;
-}
-
-.status-badge {
-font-family: var(--font-mono);
-font-size: 9px;
-font-weight: 700;
-letter-spacing: 1.5px;
-padding: 4px 8px;
-border-radius: 4px;
-text-transform: uppercase;
-}
-.status-badge.underway { background: rgba(0,255,157,0.12); color: var(--accent2); border: 1px solid rgba(0,255,157,0.3); }
-.status-badge.anchored { background: rgba(255,107,53,0.12); color: var(--warn); border: 1px solid rgba(255,107,53,0.3); }
-.status-badge.moored { background: rgba(90,122,159,0.12); color: var(--muted); border: 1px solid rgba(90,122,159,0.3); }
-
-.card-grid {
-display: grid;
-grid-template-columns: 1fr 1fr 1fr;
-gap: 8px;
-margin-bottom: 10px;
-}
-
-.card-field {
-background: var(--surface2);
-border: 1px solid var(--border);
-border-radius: 6px;
-padding: 8px;
-}
-
-.field-label {
-font-family: var(--font-mono);
-font-size: 8px;
-color: var(--muted);
-letter-spacing: 1px;
-text-transform: uppercase;
-margin-bottom: 4px;
-}
-
-.field-value {
-font-family: var(--font-ui);
-font-size: 14px;
-font-weight: 600;
-color: var(--text);
-white-space: nowrap;
-overflow: hidden;
-text-overflow: ellipsis;
-}
-
-.field-value.accent { color: var(--accent); }
-
-.route-row {
-display: flex;
-align-items: center;
-gap: 8px;
-background: var(--surface2);
-border: 1px solid var(--border);
-border-radius: 6px;
-padding: 8px 12px;
-}
-
-.route-port {
-flex: 1;
-}
-
-.port-label {
-font-family: var(--font-mono);
-font-size: 8px;
-color: var(--muted);
-letter-spacing: 1px;
-margin-bottom: 2px;
-}
-
-.port-name {
-font-family: var(--font-ui);
-font-size: 13px;
-font-weight: 600;
-}
-
-.route-arrow {
-color: var(--accent);
-font-size: 16px;
-flex-shrink: 0;
-}
-
-.close-btn {
-position: absolute;
-top: 12px;
-right: 16px;
-background: none;
-border: none;
-color: var(--muted);
-font-size: 18px;
-cursor: pointer;
-line-height: 1;
-padding: 4px;
-}
+:root{--bg:#0a0f1e;--surface:#111827;--surface2:#1a2235;--border:#1e3a5f;--accent:#00d4ff;--accent2:#00ff9d;--warn:#ff6b35;--text:#e2eaf5;--muted:#5a7a9f;--font-mono:'Space Mono',monospace;--font-ui:'Barlow Condensed',sans-serif}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:var(--font-ui);height:100dvh;overflow:hidden;display:flex;flex-direction:column}
+header{position:relative;z-index:1000;background:var(--surface);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;padding-top:max(10px,env(safe-area-inset-top))}
+.logo{display:flex;align-items:center;gap:8px}
+.logo-icon{width:28px;height:28px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px}
+.logo-text{font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:2px;color:var(--accent);text-transform:uppercase}
+.header-right{display:flex;align-items:center;gap:12px}
+.live-badge{display:flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:9px;color:var(--accent2);letter-spacing:1px}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--accent2);animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+.fleet-count{font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:1px}
+#map{flex:1;background:var(--bg);z-index:1}
+.leaflet-tile{filter:brightness(.7) saturate(.8) hue-rotate(180deg) invert(1) hue-rotate(200deg)}
+.leaflet-container{background:#0a1628}
+.leaflet-control-zoom a{background:var(--surface2)!important;color:var(--accent)!important;border-color:var(--border)!important}
+.leaflet-control-attribution{display:none}
+.vessel-marker-wrap{display:flex;flex-direction:column;align-items:center;cursor:pointer}
+.vessel-label{font-family:var(--font-mono);font-size:8px;color:var(--accent);background:rgba(10,15,30,.85);border:1px solid var(--border);border-radius:3px;padding:1px 4px;margin-top:2px;white-space:nowrap;letter-spacing:.5px}
+#panel{position:relative;z-index:1000;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0;padding-bottom:env(safe-area-inset-bottom)}
+#fleet-strip{padding:10px 16px;overflow-x:auto;scrollbar-width:none;display:flex;gap:8px;-webkit-overflow-scrolling:touch}
+#fleet-strip::-webkit-scrollbar{display:none}
+.vessel-chip{flex-shrink:0;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;cursor:pointer;transition:all .2s;display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:110px}
+.vessel-chip:active{transform:scale(.96)}
+.vessel-chip.active{border-color:var(--accent);background:rgba(0,212,255,.08)}
+.chip-name{font-family:var(--font-ui);font-size:12px;font-weight:600;letter-spacing:.5px;color:var(--text);white-space:nowrap}
+.chip-status{font-family:var(--font-mono);font-size:8px;letter-spacing:.5px}
+.chip-status.underway{color:var(--accent2)}
+.chip-status.anchored{color:var(--warn)}
+.chip-status.moored{color:var(--muted)}
+.chip-status.unknown{color:var(--muted)}
+#detail-card{display:none;border-top:1px solid var(--border);padding:14px 16px;animation:slideUp .25s ease;position:relative}
+#detail-card.visible{display:block}
+@keyframes slideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+.card-name{font-family:var(--font-ui);font-size:20px;font-weight:700;letter-spacing:1px;line-height:1}
+.card-imo{font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:1px;margin-top:3px}
+.status-badge{font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:1.5px;padding:4px 8px;border-radius:4px;text-transform:uppercase}
+.status-badge.underway{background:rgba(0,255,157,.12);color:var(--accent2);border:1px solid rgba(0,255,157,.3)}
+.status-badge.anchored{background:rgba(255,107,53,.12);color:var(--warn);border:1px solid rgba(255,107,53,.3)}
+.status-badge.moored,.status-badge.unknown{background:rgba(90,122,159,.12);color:var(--muted);border:1px solid rgba(90,122,159,.3)}
+.card-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px}
+.card-field{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px}
+.field-label{font-family:var(--font-mono);font-size:8px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px}
+.field-value{font-family:var(--font-ui);font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.field-value.accent{color:var(--accent)}
+.route-row{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 12px}
+.route-port{flex:1}
+.port-label{font-family:var(--font-mono);font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:2px}
+.port-name{font-family:var(--font-ui);font-size:13px;font-weight:600}
+.close-btn{position:absolute;top:12px;right:16px;background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;line-height:1;padding:4px}
+#status-bar{font-family:var(--font-mono);font-size:9px;color:var(--muted);text-align:center;padding:4px;letter-spacing:1px}
 </style>
 </head>
 <body>
-
 <header>
-<div class="logo">
-<div class="logo-icon">⚓</div>
-<span class="logo-text">FleetTrack</span>
-</div>
+<div class="logo"><div class="logo-icon">⚓</div><span class="logo-text">PXGEO-FleetTracker</span></div>
 <div class="header-right">
 <span class="fleet-count" id="fleet-count">— vessels</span>
-<div class="live-badge">
-<div class="live-dot"></div>
-LIVE
-</div>
+<div class="live-badge"><div class="live-dot"></div>LIVE</div>
 </div>
 </header>
-
 <div id="map"></div>
-
 <div id="panel">
+<div id="status-bar" id="status-bar">Connecting...</div>
 <div id="fleet-strip"></div>
 <div id="detail-card"></div>
 </div>
-
-<!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-// ─── CONFIG ─────────────────────────────────────────────────────────
 const AIS_KEY = '0687d703b9c4249b96f77f49d7987df46de16e82';
 const MMSI_LIST = [258866000, 311001040, 210722000, 311031800, 259795000, 210328000];
 
 const NAV_STATUS = {
 0:'Underway',1:'Anchored',2:'Not under command',3:'Restricted',
-4:'Constrained',5:'Moored',6:'Aground',7:'Fishing',8:'Sailing',
-15:'Unknown'
+4:'Constrained by draught',5:'Moored',6:'Aground',7:'Fishing',8:'Sailing',15:'Unknown'
 };
 
-// ─── STATE ──────────────────────────────────────────────────────────
 const vessels = {};
 let activeVessel = null;
 const markers = {};
 
-// ─── MAP ────────────────────────────────────────────────────────────
-const map = L.map('map', { center: [20, 0], zoom: 3, zoomControl: true, attributionControl: false });
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
+const map = L.map('map',{center:[20,0],zoom:3,zoomControl:true,attributionControl:false});
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(map);
 
-// ─── ICON ───────────────────────────────────────────────────────────
-function vesselSVG(heading, status) {
-const c = status === 'Underway' ? '#00ff9d' : status === 'Anchored' || status === 'Moored' ? '#ff6b35' : '#5a7a9f';
-return `<svg width="22" height="22" viewBox="0 0 22 22" fill="none" style="transform:rotate(${heading||0}deg)">
+function getStatusClass(status){
+if(!status) return 'unknown';
+const s = status.toLowerCase();
+if(s.includes('underway')||s.includes('sailing')) return 'underway';
+if(s.includes('anchor')) return 'anchored';
+if(s.includes('moor')) return 'moored';
+return 'unknown';
+}
+
+function vesselSVG(heading, statusClass){
+const c = statusClass==='underway'?'#00ff9d':statusClass==='anchored'?'#ff6b35':'#5a7a9f';
+const h = (heading===511||!heading) ? 0 : heading;
+return `<svg width="22" height="22" viewBox="0 0 22 22" fill="none" style="transform:rotate(${h}deg)">
 <polygon points="11,2 18,19 11,15 4,19" fill="${c}" opacity=".9"/>
 <polygon points="11,2 18,19 11,15 4,19" fill="none" stroke="${c}" stroke-width="1"/>
 </svg>`;
 }
 
-function createIcon(v) {
-const shortName = (v.name || v.mmsi).toString().split(' ')[0];
+function createIcon(v){
+const sc = getStatusClass(v.status);
+const shortName = (v.name||String(v.mmsi)).split(' ')[0];
 return L.divIcon({
-className: '',
-html: `<div class="vessel-marker-wrap">${vesselSVG(v.heading, v.status)}<span class="vessel-label">${shortName}</span></div>`,
-iconSize: [60, 40], iconAnchor: [30, 11]
+className:'',
+html:`<div class="vessel-marker-wrap">${vesselSVG(v.heading,sc)}<span class="vessel-label">${shortName}</span></div>`,
+iconSize:[60,40],iconAnchor:[30,11]
 });
 }
 
-// ─── UPDATE VESSEL ───────────────────────────────────────────────────
-function updateVessel(data) {
-const mmsi = data.UserID || data.MMSI;
-if (!mmsi) return;
-
-const meta = data.MetaData || {};
-const nav = data.Message?.PositionReport || data.Message?.StandardClassBPositionReport || {};
-
-const lat = nav.Latitude ?? vessels[mmsi]?.lat;
-const lng = nav.Longitude ?? vessels[mmsi]?.lng;
-if (!lat || !lng) return;
-
-const statusCode = nav.NavigationalStatus ?? 15;
-const status = NAV_STATUS[statusCode] || 'Unknown';
-const speed = nav.SpeedOverGround ?? 0;
-const course = Math.round(nav.CourseOverGround ?? 0);
-const heading = nav.TrueHeading ?? nav.CourseOverGround ?? 0;
-const name = meta.ShipName?.trim() || vessels[mmsi]?.name || String(mmsi);
-const destination = meta.Destination?.trim() || vessels[mmsi]?.destination || '—';
-const draught = meta.Draught ? meta.Draught + 'm' : vessels[mmsi]?.draught || '—';
-const eta = meta.ETA || vessels[mmsi]?.eta || '—';
-
-vessels[mmsi] = { mmsi, name, lat, lng, heading, speed, course, status, destination, draught, eta };
-
-if (markers[mmsi]) {
-markers[mmsi].setLatLng([lat, lng]);
-markers[mmsi].setIcon(createIcon(vessels[mmsi]));
-} else {
-const m = L.marker([lat, lng], { icon: createIcon(vessels[mmsi]) }).addTo(map);
-m.on('click', () => selectVessel(mmsi));
-markers[mmsi] = m;
-}
-
-updateStrip();
-if (activeVessel === mmsi) renderCard(mmsi);
-}
-
-// ─── STRIP ──────────────────────────────────────────────────────────
-function updateStrip() {
+function updateStrip(){
 const strip = document.getElementById('fleet-strip');
-strip.innerHTML = '';
-document.getElementById('fleet-count').textContent = Object.keys(vessels).length + ' vessels';
-
-Object.values(vessels).forEach(v => {
-const cls = v.status === 'Underway' ? 'underway' : v.status === 'Anchored' ? 'anchored' : 'moored';
+strip.innerHTML='';
+const count = Object.keys(vessels).length;
+document.getElementById('fleet-count').textContent = count + ' vessel' + (count!==1?'s':'');
+Object.values(vessels).forEach(v=>{
+const sc = getStatusClass(v.status);
 const chip = document.createElement('div');
-chip.className = 'vessel-chip' + (activeVessel === v.mmsi ? ' active' : '');
-chip.dataset.id = v.mmsi;
-chip.innerHTML = `<span class="chip-name">${v.name}</span><span class="chip-status ${cls}">${v.status.toUpperCase()}</span>`;
-chip.addEventListener('click', () => selectVessel(v.mmsi));
+chip.className='vessel-chip'+(activeVessel===v.mmsi?' active':'');
+chip.dataset.id=v.mmsi;
+chip.innerHTML=`<span class="chip-name">${v.name||v.mmsi}</span><span class="chip-status ${sc}">${(v.status||'Unknown').toUpperCase()}</span>`;
+chip.addEventListener('click',()=>selectVessel(v.mmsi));
 strip.appendChild(chip);
 });
 }
 
-// ─── SELECT ──────────────────────────────────────────────────────────
-function selectVessel(mmsi) {
-if (activeVessel === mmsi) { clearSelection(); return; }
-activeVessel = mmsi;
-updateStrip();
-const v = vessels[mmsi];
-if (v) map.flyTo([v.lat, v.lng], Math.max(map.getZoom(), 6), { duration: 0.8 });
-renderCard(mmsi);
-}
-
-function renderCard(mmsi) {
-const v = vessels[mmsi];
-if (!v) return;
-const cls = v.status === 'Underway' ? 'underway' : v.status === 'Anchored' ? 'anchored' : 'moored';
-const card = document.getElementById('detail-card');
-card.className = 'visible';
-card.innerHTML = `
+function renderCard(mmsi){
+const v=vessels[mmsi]; if(!v) return;
+const sc=getStatusClass(v.status);
+const card=document.getElementById('detail-card');
+card.className='visible';
+card.innerHTML=`
 <button class="close-btn" onclick="clearSelection()">✕</button>
 <div class="card-header">
-<div>
-<div class="card-name">${v.name}</div>
-<div class="card-imo">MMSI ${v.mmsi}</div>
-</div>
-<div class="status-badge ${cls}">${v.status}</div>
+<div><div class="card-name">${v.name||mmsi}</div><div class="card-imo">MMSI ${v.mmsi}</div></div>
+<div class="status-badge ${sc}">${v.status||'Unknown'}</div>
 </div>
 <div class="card-grid">
-<div class="card-field"><div class="field-label">Speed</div><div class="field-value accent">${v.speed.toFixed(1)} kn</div></div>
-<div class="card-field"><div class="field-label">Course</div><div class="field-value">${v.course}°</div></div>
-<div class="card-field"><div class="field-label">Draught</div><div class="field-value">${v.draught}</div></div>
+<div class="card-field"><div class="field-label">Speed</div><div class="field-value accent">${v.speed!=null?Number(v.speed).toFixed(1)+' kn':'—'}</div></div>
+<div class="card-field"><div class="field-label">Course</div><div class="field-value">${v.course!=null?Math.round(v.course)+'°':'—'}</div></div>
+<div class="card-field"><div class="field-label">Heading</div><div class="field-value">${v.heading&&v.heading!==511?Math.round(v.heading)+'°':'—'}</div></div>
 </div>
 <div class="route-row">
-<div class="route-port"><div class="port-label">DESTINATION</div><div class="port-name">${v.destination}</div></div>
-<div class="route-port" style="text-align:right"><div class="port-label">ETA</div><div class="port-name" style="font-size:12px">${v.eta}</div></div>
+<div class="route-port"><div class="port-label">DESTINATION</div><div class="port-name">${v.destination||'—'}</div></div>
+<div class="route-port" style="text-align:right"><div class="port-label">LAST UPDATE</div><div class="port-name" style="font-size:11px">${v.updated||'—'}</div></div>
 </div>`;
 }
 
-function clearSelection() {
-activeVessel = null;
+function selectVessel(mmsi){
+if(activeVessel===mmsi){clearSelection();return;}
+activeVessel=mmsi;
 updateStrip();
-document.getElementById('detail-card').className = '';
-document.getElementById('detail-card').innerHTML = '';
+const v=vessels[mmsi];
+if(v&&v.lat&&v.lng) map.flyTo([v.lat,v.lng],Math.max(map.getZoom(),6),{duration:0.8});
+renderCard(mmsi);
 }
 
-// ─── AIS WEBSOCKET ───────────────────────────────────────────────────
-function connectAIS() {
+function clearSelection(){
+activeVessel=null; updateStrip();
+document.getElementById('detail-card').className='';
+document.getElementById('detail-card').innerHTML='';
+}
+
+function setStatus(msg){
+document.getElementById('status-bar').textContent=msg;
+}
+
+// Fetch via AISstream HTTP (position reports for specific MMSIs)
+async function fetchVessels(){
+setStatus('Fetching vessel data...');
+try {
+const mmsiStr = MMSI_LIST.join(',');
+const url = `https://api.aisstream.io/v0/vessel?mmsi=${mmsiStr}`;
+const res = await fetch(url, {
+headers:{'Authorization': AIS_KEY}
+});
+if(!res.ok) throw new Error('HTTP '+res.status);
+const data = await res.json();
+processAPIData(data);
+} catch(e) {
+// Fallback: try alternative endpoint
+fetchViaWebSocket();
+}
+}
+
+function processAPIData(data){
+const list = Array.isArray(data) ? data : (data.vessels||data.data||[]);
+if(!list.length){ fetchViaWebSocket(); return; }
+list.forEach(v=>{
+const mmsi = v.mmsi||v.MMSI;
+if(!mmsi) return;
+vessels[mmsi]={
+mmsi, name:(v.name||v.shipName||'').trim()||String(mmsi),
+lat:v.latitude||v.lat, lng:v.longitude||v.lng,
+heading:v.heading||v.trueHeading,
+speed:v.speed||v.sog, course:v.course||v.cog,
+status:NAV_STATUS[v.navigationalStatus]||v.status||'Unknown',
+destination:(v.destination||'').trim()||'—',
+updated: new Date().toUTCString().slice(17,22)+' UTC'
+};
+const mv = vessels[mmsi];
+if(!mv.lat||!mv.lng) return;
+if(markers[mmsi]){markers[mmsi].setLatLng([mv.lat,mv.lng]);markers[mmsi].setIcon(createIcon(mv));}
+else{const m=L.marker([mv.lat,mv.lng],{icon:createIcon(mv)}).addTo(map);m.on('click',()=>selectVessel(mmsi));markers[mmsi]=m;}
+});
+updateStrip();
+if(activeVessel) renderCard(activeVessel);
+setStatus('Updated '+new Date().toUTCString().slice(17,25)+' UTC');
+}
+
+// WebSocket fallback
+function fetchViaWebSocket(){
+setStatus('Connecting via WebSocket...');
 const ws = new WebSocket('wss://stream.aisstream.io/v0/stream');
-
-ws.onopen = () => {
-ws.send(JSON.stringify({
-APIKey: AIS_KEY,
-MessageTypes: ['PositionReport'],
-Filters: { MMSI: MMSI_LIST }
-}));
-console.log('AIS connected');
+ws.onopen=()=>{
+ws.send(JSON.stringify({APIKey:AIS_KEY,MessageTypes:['PositionReport','ShipStaticData'],Filters:{MMSI:MMSI_LIST}}));
+setStatus('WebSocket connected — waiting for data...');
+setTimeout(()=>ws.close(),30000);
 };
-
-ws.onmessage = e => {
-try { updateVessel(JSON.parse(e.data)); } catch {}
+ws.onmessage=e=>{
+try{
+const d=JSON.parse(e.data);
+const mmsi=d.MetaData?.MMSI||d.UserID;
+if(!mmsi||!MMSI_LIST.includes(mmsi)) return;
+const pos=d.Message?.PositionReport||d.Message?.StandardClassBPositionReport||{};
+const meta=d.MetaData||{};
+if(!vessels[mmsi]) vessels[mmsi]={mmsi,name:String(mmsi),status:'Unknown'};
+const v=vessels[mmsi];
+if(pos.Latitude) v.lat=pos.Latitude;
+if(pos.Longitude) v.lng=pos.Longitude;
+if(pos.TrueHeading) v.heading=pos.TrueHeading;
+if(pos.SpeedOverGround!=null) v.speed=pos.SpeedOverGround;
+if(pos.CourseOverGround!=null) v.course=pos.CourseOverGround;
+if(pos.NavigationalStatus!=null) v.status=NAV_STATUS[pos.NavigationalStatus]||'Unknown';
+if(meta.ShipName) v.name=meta.ShipName.trim();
+if(meta.Destination) v.destination=meta.Destination.trim();
+v.updated=new Date().toUTCString().slice(17,25)+' UTC';
+if(!v.lat||!v.lng) return;
+if(markers[mmsi]){markers[mmsi].setLatLng([v.lat,v.lng]);markers[mmsi].setIcon(createIcon(v));}
+else{const m=L.marker([v.lat,v.lng],{icon:createIcon(v)}).addTo(map);m.on('click',()=>selectVessel(mmsi));markers[mmsi]=m;}
+updateStrip();
+if(activeVessel===mmsi) renderCard(mmsi);
+setStatus('Receiving data... '+Object.keys(vessels).filter(k=>vessels[k].lat).length+' located');
+}catch(err){}
 };
-
-ws.onclose = () => {
-console.log('AIS disconnected, reconnecting in 5s...');
-setTimeout(connectAIS, 5000);
+ws.onclose=()=>{
+setStatus('Reconnecting in 10s...');
+setTimeout(fetchViaWebSocket,10000);
 };
-
-ws.onerror = () => ws.close();
 }
 
-connectAIS();
+// Start
+fetchViaWebSocket();
+// Also try HTTP every 5 minutes
+setInterval(fetchVessels, 300000);
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
 </script>
 </body>
 </html>
